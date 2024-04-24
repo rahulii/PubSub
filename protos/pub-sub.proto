@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package pubsub;
+
+option go_package = "github.com/rahulii/pubsub/grpc/pb/pub-sub";
+
+// UUID is the universally unique identifier
+message UUID {
+    string value = 1;
+}
+
+message PublishInfo {
+    string  topic = 1;
+    string  message = 2;
+}
+
+message PublishResponse {
+   bool success = 1;
+}
+
+message SubscribeInfo {
+    UUID    subscriber_id = 1;
+    string  topic = 2;
+}
+
+message SubscribeResponse {
+    string message = 1;
+    string  topic = 2;
+}
+
+// PubSubService is the service definition for the PubSub service.
+service PubSubService {
+    // rpc Publish is used to publish the message to the topic.
+    rpc Publish(PublishInfo) returns (PublishResponse) {}
+    rpc Subscribe(SubscribeInfo) returns (stream SubscribeResponse) {}
+}
