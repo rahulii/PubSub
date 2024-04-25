@@ -17,7 +17,7 @@ type Broker interface {
 
 // streamKey is used to uniquely identify a stream.
 type streamKey struct {
-	topic string
+	topic        string
 	subscriberID *pb.UUID
 }
 
@@ -29,14 +29,14 @@ type broker struct {
 	subscribers map[string]map[*pb.UUID]pb.PubSubService_SubscribeServer
 	// streamLock is used to lock a stream when it is being written to.
 	// This is used to prevent multiple goroutines from writing to the same stream at the same time.
-	streamLock  map[streamKey]*sync.Mutex
-	mu 		sync.RWMutex
-	ctx 	context.Context
-	cancel 	context.CancelFunc
-	log 	*zap.Logger
-	address string
-	listener net.Listener
-	server *grpc.Server
+	streamLock map[streamKey]*sync.Mutex
+	mu         sync.RWMutex
+	ctx        context.Context
+	cancel     context.CancelFunc
+	log        *zap.Logger
+	address    string
+	listener   net.Listener
+	server     *grpc.Server
 }
 
 // NewBroker creates a new broker.
@@ -48,7 +48,8 @@ func NewBroker(address string) Broker {
 		ctx:         ctx,
 		cancel:      cancel,
 		address:     address,
-		log: 		 zap.Must(zap.NewProduction()),
+		log:         zap.Must(zap.NewProduction()),
+		mu:          sync.RWMutex{},
 	}
 }
 
@@ -65,12 +66,6 @@ func (b *broker) Start() error {
 func (b *broker) Stop() error {
 	b.cancel()
 	b.server.GracefulStop()
-
-	if err := b.listener.Close(); err != nil {
-		b.log.Error("error closing listener", zap.Error(err))
-		return err
-	}
-
 	return nil
 }
 
@@ -95,6 +90,8 @@ func (b *broker) Publish(ctx context.Context, info *pb.PublishInfo) (*pb.Publish
 		}
 		// Unlock the stream after writing to it.
 		b.streamLock[key].Unlock()
+
+		b.log.Info("message sent to subscriber", zap.String("topic", info.Topic), zap.String("subscriber_id", subscriberID.String()))
 	}
 
 	return &pb.PublishResponse{Success: true}, nil
@@ -103,7 +100,6 @@ func (b *broker) Publish(ctx context.Context, info *pb.PublishInfo) (*pb.Publish
 // Subscribe is a streaming RPC that allows a client to subscribe to a topic.
 func (b *broker) Subscribe(info *pb.SubscribeInfo, stream pb.PubSubService_SubscribeServer) error {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 
 	if _, ok := b.subscribers[info.Topic]; !ok {
 		b.subscribers[info.Topic] = make(map[*pb.UUID]pb.PubSubService_SubscribeServer)
@@ -116,9 +112,11 @@ func (b *broker) Subscribe(info *pb.SubscribeInfo, stream pb.PubSubService_Subsc
 
 	b.log.Info("new subscriber added", zap.String("topic", info.Topic), zap.String("subscriber_id", info.SubscriberId.String()))
 
+	b.mu.Unlock()
+
 	for {
 		select {
-			// wait for the context to be done.
+		// wait for the context to be done.
 		case <-b.ctx.Done():
 			return nil
 			// wait for the client to close the stream.

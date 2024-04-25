@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-
 func (b *broker) startGRPCServer() error {
 	var err error
 	b.listener, err = net.Listen("tcp", b.address)
@@ -35,7 +34,7 @@ func (b *broker) startGRPCServer() error {
 	return nil
 }
 
-func (b *broker) gracefulStop() error{
+func (b *broker) gracefulStop() error {
 	stopCh := make(chan os.Signal, 1)
 	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM)
 

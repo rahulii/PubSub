@@ -18,16 +18,16 @@ type Publisher interface {
 type publisher struct {
 	brokerAddress string
 	grpcClient    pb.PubSubServiceClient
-	cc 		  *grpc.ClientConn
-	ctx 	  context.Context
-	cancel    context.CancelFunc
+	cc            *grpc.ClientConn
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
 // NewPublisher creates a new publisher.
 func NewPublisher(brokerAddress string) (Publisher, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	
-	conn , err := grpc.Dial(
+
+	conn, err := grpc.Dial(
 		brokerAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -39,9 +39,9 @@ func NewPublisher(brokerAddress string) (Publisher, error) {
 	return &publisher{
 		brokerAddress: brokerAddress,
 		grpcClient:    pb.NewPubSubServiceClient(conn),
-		cc: 			conn,
-		ctx: 			ctx,
-		cancel: 		cancel,
+		cc:            conn,
+		ctx:           ctx,
+		cancel:        cancel,
 	}, nil
 }
 
